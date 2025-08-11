@@ -1,0 +1,241 @@
+.message-input-container {
+  padding: 20px;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+}
+
+.message-input-form {
+  width: 100%;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  transition: border-color 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.message-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 120px;
+  outline: none;
+  font-family: inherit;
+}
+
+.message-input::placeholder {
+  color: #9ca3af;
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emoji-button,
+.send-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: transparent;
+}
+
+.emoji-button {
+  color: #6b7280;
+}
+
+.emoji-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.send-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.send-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Emoji picker styles */
+.emoji-picker-container {
+  position: relative;
+}
+
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  max-width: 280px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-bottom: 8px;
+}
+
+.emoji-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background-color 0.2s ease;
+}
+
+.emoji-item:hover {
+  background-color: #f3f4f6;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .message-input-container {
+    padding: 15px;
+    flex-shrink: 0;
+  }
+  
+  .emoji-picker {
+    grid-template-columns: repeat(6, 1fr);
+    max-width: 240px;
+    max-height: 180px;
+  }
+  
+  .emoji-item {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  
+  .input-wrapper {
+    padding: 10px;
+    gap: 8px;
+  }
+  
+  .message-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+  
+  .emoji-button,
+  .send-button {
+    width: 32px;
+    height: 32px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .message-input-container {
+    padding: 10px;
+  }
+  
+  .emoji-picker {
+    grid-template-columns: repeat(5, 1fr);
+    max-width: 200px;
+    max-height: 160px;
+  }
+  
+  .emoji-item {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+  
+  .input-wrapper {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 8px;
+  }
+  
+  .message-input {
+    font-size: 16px; /* Keep 16px to prevent iOS zoom */
+    max-height: 100px;
+    min-height: 44px;
+  }
+  
+  .emoji-button,
+  .send-button {
+    width: 32px;
+    height: 32px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .emoji-button svg,
+  .send-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 320px) {
+  .message-input-container {
+    padding: 8px;
+  }
+  
+  .input-wrapper {
+    padding: 6px;
+    gap: 4px;
+  }
+  
+  .message-input {
+    font-size: 16px; /* Keep 16px to prevent iOS zoom */
+    max-height: 80px;
+    min-height: 44px;
+  }
+  
+  .emoji-button,
+  .send-button {
+    width: 32px;
+    height: 32px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .emoji-button svg,
+  .send-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}

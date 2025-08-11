@@ -1,0 +1,145 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dashboard layout */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  background: #f8f9fa;
+}
+
+.sidebar {
+  width: 300px;
+  background: white;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  margin: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+    height: 100vh;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 60px;
+    transition: max-height 0.3s ease;
+    position: relative;
+    z-index: 1000;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    overflow: hidden;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .sidebar.expanded {
+    max-height: 500px;
+  }
+  
+  .sidebar-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    cursor: pointer;
+    min-height: 60px;
+  }
+  
+  .main-content {
+    flex: 1;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+    transition: height 0.3s ease;
+  }
+  
+  .sidebar.expanded + .main-content {
+    height: calc(100vh - 500px);
+  }
+  
+  .chat-container {
+    margin: 10px;
+    border-radius: 8px;
+    height: calc(100vh - 80px);
+  }
+  
+  .sidebar.expanded ~ .main-content .chat-container {
+    height: calc(100vh - 520px);
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    max-height: 50px;
+  }
+  
+  .sidebar.expanded {
+    max-height: 450px;
+  }
+  
+  .sidebar-header {
+    padding: 12px;
+    min-height: 50px;
+  }
+  
+  .main-content {
+    height: calc(100vh - 50px);
+  }
+  
+  .sidebar.expanded + .main-content {
+    height: calc(100vh - 450px);
+  }
+  
+  .chat-container {
+    margin: 5px;
+    border-radius: 6px;
+    height: calc(100vh - 60px);
+  }
+  
+  .sidebar.expanded ~ .main-content .chat-container {
+    height: calc(100vh - 460px);
+  }
+}
+
+@media (max-width: 320px) {
+  .chat-container {
+    margin: 2px;
+    border-radius: 4px;
+    height: calc(100vh - 54px);
+  }
+  
+  .sidebar.expanded ~ .main-content .chat-container {
+    height: calc(100vh - 454px);
+  }
+  
+  .sidebar-header {
+    padding: 8px;
+    min-height: 46px;
+  }
+}
