@@ -1,374 +1,224 @@
 import { create } from 'zustand';
-import { io } from 'socket.io-client';
+import io from 'socket.io-client';
 import axios from 'axios';
-import useAuthStore from './authStore';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5001';
 
 const useChatStore = create((set, get) => ({
-  socket: null,
+  // State
   rooms: [],
   currentRoom: null,
   messages: [],
   users: [],
-  typingUsers: new Set(),
-  loading: false,
+  socket: null,
+  isConnected: false,
+  isLoading: false,
   error: null,
 
-  // Initialize socket connection
+  // Socket connection
   initializeSocket: () => {
-    const { token, socket } = useAuthStore.getState();
-    if (!token) return;
+    if (get().socket) return;
     
-    // Prevent multiple socket connections
-    if (socket) {
-      console.log('Socket already exists, skipping initialization');
-      return;
-    }
-
-    const newSocket = io('http://localhost:5001', {
-      auth: { token }
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      withCredentials: true
     });
 
-    newSocket.on('connect', () => {
+    socket.on('connect', () => {
       console.log('Connected to server');
-      set({ error: null });
+      set({ socket, isConnected: true });
     });
 
-    newSocket.on('disconnect', () => {
+    socket.on('disconnect', () => {
       console.log('Disconnected from server');
+      set({ isConnected: false });
     });
 
-    newSocket.on('error', (error) => {
-      console.error('Socket error:', error);
-      if (error.message === 'Authentication error') {
-        // Token is invalid, redirect to login
-        useAuthStore.getState().logout();
-      } else {
-        set({ error: error.message });
+    socket.on('new_message', (message) => {
+      const { messages } = get();
+      const messageExists = messages.some(m => m._id === message._id);
+      if (!messageExists) {
+        set({ messages: [...messages, message] });
       }
     });
 
-    newSocket.on('new_message', ({ message }) => {
-      const { currentRoom, messages } = get();
-      if (currentRoom && message.room === currentRoom._id) {
-        // Prevent duplicate messages by checking if message already exists
-        const messageExists = messages.some(msg => msg._id === message._id);
-        if (!messageExists) {
-          set({
-            messages: [...messages, message]
-          });
-        }
-      }
+    socket.on('user_joined', (data) => {
+      console.log('User joined:', data);
     });
 
-    newSocket.on('user_typing', ({ roomId, user }) => {
-      const { currentRoom, typingUsers } = get();
-      if (currentRoom && roomId === currentRoom._id) {
-        const newTypingUsers = new Set(typingUsers);
-        newTypingUsers.add(user.username);
-        set({ typingUsers: newTypingUsers });
-      }
+    socket.on('user_left', (data) => {
+      console.log('User left:', data);
     });
 
-    newSocket.on('user_stopped_typing', ({ roomId, user }) => {
-      const { currentRoom, typingUsers } = get();
-      if (currentRoom && roomId === currentRoom._id) {
-        const newTypingUsers = new Set(typingUsers);
-        newTypingUsers.delete(user.username);
-        set({ typingUsers: newTypingUsers });
-      }
+    socket.on('typing_start', (data) => {
+      // Handle typing indicator
     });
 
-    newSocket.on('user_joined_room', ({ roomId, user }) => {
-      console.log(`${user.username} joined the room`);
+    socket.on('typing_stop', (data) => {
+      // Handle typing indicator stop
     });
 
-    newSocket.on('user_left_room', ({ roomId, user }) => {
-      console.log(`${user.username} left the room`);
-    });
-
-    set({ socket: newSocket });
+    set({ socket });
   },
 
-  // Disconnect socket
   disconnectSocket: () => {
     const { socket } = get();
     if (socket) {
       socket.disconnect();
-      set({ socket: null });
+      set({ socket: null, isConnected: false });
     }
   },
 
-  // Get user's rooms
+  // Room management
   fetchRooms: async () => {
-    const { token } = useAuthStore.getState();
-    console.log('Fetching rooms with token:', token ? 'exists' : 'none');
-    if (!token) {
-      set({ rooms: [], loading: false });
-      return;
-    }
-    
-    set({ loading: true });
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     try {
-      const response = await axios.get('/api/rooms/my-rooms');
-      set({ rooms: response.data.rooms, loading: false });
+      const response = await axios.get(`${API_BASE_URL}/api/rooms/my-rooms`);
+      set({ rooms: response.data });
     } catch (error) {
       console.error('Fetch rooms error:', error);
       if (error.response?.status === 401) {
-        console.log('401 error - clearing auth state');
-        useAuthStore.getState().logout();
-        set({ rooms: [], loading: false });
-      } else {
-        set({ error: error.response?.data?.message || 'Failed to fetch rooms', loading: false });
+        set({ rooms: [] });
       }
     }
   },
 
-  // Get a specific room
-  fetchRoom: async (roomId) => {
-    const { token } = useAuthStore.getState();
-    if (!token) return null;
-    
+  createRoom: async (roomData) => {
     try {
-      const response = await axios.get(`/api/rooms/${roomId}`);
-      return response.data.room;
+      const response = await axios.post(`${API_BASE_URL}/api/rooms`, roomData);
+      const newRoom = response.data;
+      set({ rooms: [...get().rooms, newRoom] });
+      return { success: true, room: newRoom };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to create room'
+      };
+    }
+  },
+
+  joinRoom: async (roomId) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/rooms/${roomId}/join`);
+      await get().fetchRooms();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to join room'
+      };
+    }
+  },
+
+  setCurrentRoom: (room) => {
+    if (room && room._id) {
+      set({ currentRoom: room });
+      get().fetchMessages(room._id);
+    }
+  },
+
+  fetchRoom: async (roomId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/rooms/${roomId}`);
+      return response.data;
     } catch (error) {
       console.error('Fetch room error:', error);
       return null;
     }
   },
 
-  // Get public rooms
-  fetchPublicRooms: async () => {
-    set({ loading: true });
-    try {
-      const response = await axios.get('/api/rooms/public');
-      set({ rooms: response.data.rooms, loading: false });
-    } catch (error) {
-      console.error('Fetch public rooms error:', error);
-      set({ error: error.response?.data?.message || 'Failed to fetch rooms', loading: false });
-    }
-  },
-
-  // Create a new room
-  createRoom: async (roomData) => {
-    try {
-      const response = await axios.post('/api/rooms', roomData);
-      const newRoom = response.data.room;
-      
-      set(state => ({
-        rooms: [...state.rooms, newRoom]
-      }));
-
-      return { success: true, room: newRoom };
-    } catch (error) {
-      console.error('Create room error:', error);
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to create room'
-      };
-    }
-  },
-
-  // Join a room
-  joinRoom: async (roomId) => {
-    try {
-      const response = await axios.post(`/api/rooms/${roomId}/join`);
-      const updatedRoom = response.data.room;
-      
-      set(state => ({
-        rooms: state.rooms.map(room => 
-          room._id === roomId ? updatedRoom : room
-        )
-      }));
-
-      return { success: true, room: updatedRoom };
-    } catch (error) {
-      console.error('Join room error:', error);
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to join room'
-      };
-    }
-  },
-
-  // Leave a room
-  leaveRoom: async (roomId) => {
-    try {
-      await axios.post(`/api/rooms/${roomId}/leave`);
-      
-      set(state => ({
-        rooms: state.rooms.filter(room => room._id !== roomId),
-        currentRoom: state.currentRoom?._id === roomId ? null : state.currentRoom
-      }));
-
-      return { success: true };
-    } catch (error) {
-      console.error('Leave room error:', error);
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to leave room'
-      };
-    }
-  },
-
-  // Set current room
-  setCurrentRoom: (room) => {
-    set({ currentRoom: room, messages: [], typingUsers: new Set() });
-    if (room && room._id) {
-      get().fetchMessages(room._id);
-    }
-  },
-
-  // Fetch messages for a room
+  // Message management
   fetchMessages: async (roomId, page = 1) => {
-    const { token } = useAuthStore.getState();
-    if (!token) {
-      set({ messages: [] });
-      return { totalPages: 0, currentPage: 1 };
-    }
-    
-    try {
-      const response = await axios.get(`/api/messages/room/${roomId}?page=${page}`);
-      const { messages, totalPages, currentPage } = response.data;
-      
-      if (page === 1) {
-        set({ messages });
-      } else {
-        set(state => ({
-          messages: [...messages, ...state.messages]
-        }));
-      }
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-      return { totalPages, currentPage };
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/messages/room/${roomId}?page=${page}`);
+      set({ messages: response.data.messages || [] });
     } catch (error) {
       console.error('Fetch messages error:', error);
       if (error.response?.status === 401) {
-        console.log('401 error - clearing auth state');
-        useAuthStore.getState().logout();
         set({ messages: [] });
-      } else {
-        set({ error: error.response?.data?.message || 'Failed to fetch messages' });
       }
     }
   },
 
-  // Send a message
-  sendMessage: (content, messageType = 'text', replyTo = null) => {
-    const { socket, currentRoom } = get();
-    console.log('Sending message:', { content, currentRoom: currentRoom?._id, socket: !!socket });
-    
-    if (!socket) {
-      console.error('No socket connection');
-      return;
-    }
-    
-    if (!currentRoom) {
-      console.error('No current room set');
-      return;
-    }
-
-    // Prevent duplicate sends
-    if (socket.isSending) {
-      console.log('Message already being sent, skipping');
-      return;
-    }
-
-    socket.isSending = true;
-    socket.emit('send_message', {
-      roomId: currentRoom._id,
-      content,
-      messageType,
-      replyTo
-    });
-
-    // Reset sending flag after a short delay
-    setTimeout(() => {
-      socket.isSending = false;
-    }, 1000);
-  },
-
-  // Send direct message
-  sendDirectMessage: (recipientId, content) => {
+  sendMessage: async (content, roomId) => {
     const { socket } = get();
-    if (!socket) return;
+    if (!socket || socket.isSending) return { success: false, error: 'Socket not ready' };
 
-    socket.emit('send_direct_message', {
-      recipientId,
-      content
-    });
-  },
-
-  // Start typing indicator
-  startTyping: () => {
-    const { socket, currentRoom } = get();
-    if (!socket || !currentRoom) return;
-
-    socket.emit('typing_start', { roomId: currentRoom._id });
-  },
-
-  // Stop typing indicator
-  stopTyping: () => {
-    const { socket, currentRoom } = get();
-    if (!socket || !currentRoom) return;
-
-    socket.emit('typing_stop', { roomId: currentRoom._id });
-  },
-
-  // Add reaction to message
-  addReaction: async (messageId, emoji) => {
     try {
-      if (!messageId) {
-        console.error('Message ID is required for reaction');
-        return;
-      }
-      
-      const response = await axios.post(`/api/messages/${messageId}/reactions`, { emoji });
-      const updatedMessage = response.data.message;
-      
-      set(state => ({
-        messages: state.messages.map(msg => 
-          msg._id === messageId ? updatedMessage : msg
-        )
-      }));
-      
-      console.log('Reaction added successfully:', emoji);
+      socket.isSending = true;
+      const response = await axios.post(`${API_BASE_URL}/api/messages`, {
+        content,
+        roomId
+      });
+
+      const message = response.data;
+      set({ messages: [...get().messages, message] });
+
+      // Reset sending flag after 1 second
+      setTimeout(() => {
+        if (socket) socket.isSending = false;
+      }, 1000);
+
+      return { success: true, message };
     } catch (error) {
-      console.error('Add reaction error:', error);
-      // Show user-friendly error message
-      if (error.response?.status === 401) {
-        console.log('Unauthorized - user needs to login');
-      } else if (error.response?.status === 404) {
-        console.log('Message not found');
-      } else {
-        console.log('Failed to add reaction');
-      }
+      if (socket) socket.isSending = false;
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to send message'
+      };
     }
   },
 
-  // Get all users
-  fetchUsers: async () => {
-    const { token } = useAuthStore.getState();
-    if (!token) {
-      set({ users: [] });
-      return;
-    }
-    
+  addReaction: async (messageId, reaction) => {
     try {
-      const response = await axios.get('/api/auth/users');
-      set({ users: response.data.users });
+      const response = await axios.post(`${API_BASE_URL}/api/messages/${messageId}/reactions`, {
+        reaction
+      });
+      
+      const { messages } = get();
+      const updatedMessages = messages.map(msg => 
+        msg._id === messageId ? { ...msg, reactions: response.data.reactions } : msg
+      );
+      
+      set({ messages: updatedMessages });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to add reaction'
+      };
+    }
+  },
+
+  // User management
+  fetchUsers: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/auth/users`);
+      set({ users: response.data });
     } catch (error) {
       console.error('Fetch users error:', error);
       if (error.response?.status === 401) {
-        console.log('401 error - clearing auth state');
-        useAuthStore.getState().logout();
         set({ users: [] });
       }
     }
   },
 
-  // Clear error
-  clearError: () => {
-    set({ error: null });
+  // Clear state
+  clearMessages: () => {
+    set({ messages: [] });
+  },
+
+  clearCurrentRoom: () => {
+    set({ currentRoom: null, messages: [] });
   }
 }));
 
