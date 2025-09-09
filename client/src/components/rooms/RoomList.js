@@ -13,6 +13,13 @@ const RoomList = () => {
   const [selectedTab, setSelectedTab] = useState('public');
 
   useEffect(() => {
+    if (selectedTab === 'public') {
+      fetchPublicRooms();
+    }
+  }, [selectedTab, fetchPublicRooms]);
+
+  // Refresh rooms when component mounts
+  useEffect(() => {
     fetchPublicRooms();
   }, [fetchPublicRooms]);
 
@@ -22,12 +29,36 @@ const RoomList = () => {
       return;
     }
 
-    const result = await joinRoom(room._id);
-    if (result.success) {
-      toast.success(`Joined ${room.name}`);
+    // Check if user is already in the room
+    if (isUserInRoom(room)) {
+      toast.info('You are already in this room');
       navigate(`/dashboard/room/${room._id}`);
-    } else {
-      toast.error(result.message);
+      return;
+    }
+
+    try {
+      const result = await joinRoom(room._id);
+      if (result && result.success) {
+        toast.success(`Joined ${room.name}`);
+        navigate(`/dashboard/room/${room._id}`);
+      } else {
+        const errorMessage = result?.error || result?.message || 'Failed to join room';
+        if (errorMessage.includes('Already a member')) {
+          toast.info('You are already in this room');
+          navigate(`/dashboard/room/${room._id}`);
+        } else {
+          toast.error(errorMessage);
+        }
+      }
+    } catch (error) {
+      console.error('Join room error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to join room';
+      if (errorMessage.includes('Already a member')) {
+        toast.info('You are already in this room');
+        navigate(`/dashboard/room/${room._id}`);
+      } else {
+        toast.error('Failed to join room');
+      }
     }
   };
 
@@ -37,7 +68,11 @@ const RoomList = () => {
 
   const isUserInRoom = (room) => {
     if (!user || !user._id) return false;
-    return room.members.some(member => member.user && member.user._id === user._id);
+    
+    return room.members.some(member => {
+      const memberUserId = member.user?._id || member.user;
+      return memberUserId && memberUserId.toString() === user._id.toString();
+    });
   };
 
   if (loading) {
@@ -47,6 +82,7 @@ const RoomList = () => {
       </div>
     );
   }
+
 
   return (
     <div className="room-list-container">
@@ -76,7 +112,7 @@ const RoomList = () => {
       </div>
 
       <div className="rooms-grid">
-        {!rooms || rooms.length === 0 ? (
+        {!rooms || !Array.isArray(rooms) || rooms.length === 0 ? (
           <div className="empty-state">
             <FiMessageSquare className="empty-icon" />
             <h3>No rooms available</h3>

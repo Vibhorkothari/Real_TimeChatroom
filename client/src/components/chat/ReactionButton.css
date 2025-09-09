@@ -1,0 +1,194 @@
+.reaction-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.reaction-picker {
+  position: relative;
+}
+
+.reaction-trigger {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 16px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #666;
+}
+
+.reaction-trigger:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
+}
+
+.reaction-options {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 8px;
+  display: flex;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reaction-option {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.reaction-option:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.2);
+}
+
+.reaction-option.user-reacted {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.reaction-list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.reaction-item {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  min-height: 24px;
+}
+
+.reaction-item:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
+}
+
+.reaction-item.user-reacted {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+  min-width: 12px;
+  text-align: center;
+}
+
+.reaction-item.user-reacted .count {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .reaction-options {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 25px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+  
+  .reaction-option {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  
+  .reaction-item {
+    padding: 4px 8px;
+    min-height: 28px;
+  }
+  
+  .emoji {
+    font-size: 16px;
+  }
+  
+  .count {
+    font-size: 12px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .reaction-trigger {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+  }
+  
+  .reaction-trigger:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .reaction-options {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .reaction-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .reaction-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ccc;
+  }
+  
+  .reaction-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .count {
+    color: #ccc;
+  }
+}

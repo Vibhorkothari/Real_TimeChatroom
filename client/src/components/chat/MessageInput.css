@@ -46,6 +46,8 @@
   gap: 8px;
 }
 
+.file-button,
+.voice-button,
 .emoji-button,
 .send-button {
   display: flex;
@@ -58,6 +60,24 @@
   cursor: pointer;
   transition: all 0.3s ease;
   background: transparent;
+}
+
+.file-button {
+  color: #6b7280;
+}
+
+.file-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.voice-button {
+  color: #6b7280;
+}
+
+.voice-button:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .emoji-button {
@@ -156,6 +176,8 @@
     min-height: 44px;
   }
   
+  .file-button,
+  .voice-button,
   .emoji-button,
   .send-button {
     width: 32px;
@@ -194,6 +216,8 @@
     min-height: 44px;
   }
   
+  .file-button,
+  .voice-button,
   .emoji-button,
   .send-button {
     width: 32px;
@@ -225,6 +249,8 @@
     min-height: 44px;
   }
   
+  .file-button,
+  .voice-button,
   .emoji-button,
   .send-button {
     width: 32px;

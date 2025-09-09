@@ -5,6 +5,50 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+// Create a new message
+router.post('/', auth, async (req, res) => {
+  try {
+    const { content, roomId, replyTo } = req.body;
+
+    if (!content || !roomId) {
+      return res.status(400).json({ message: 'Content and roomId are required' });
+    }
+
+    // Check if user is a member of the room
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({ message: 'Room not found' });
+    }
+
+    const isMember = room.members.some(member => 
+      member.user.toString() === req.user._id.toString()
+    );
+
+    if (room.isPrivate && !isMember) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Create the message
+    const message = new Message({
+      content,
+      sender: req.user._id,
+      room: roomId,
+      replyTo: replyTo || null
+    });
+
+    await message.save();
+    await message.populate('sender', 'username avatar');
+    if (replyTo) {
+      await message.populate('replyTo', 'content sender');
+    }
+
+    res.status(201).json({ message });
+  } catch (error) {
+    console.error('Create message error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get messages for a room
 router.get('/room/:roomId', auth, async (req, res) => {
   try {
@@ -160,6 +204,76 @@ router.delete('/:messageId', auth, async (req, res) => {
     res.json({ message: 'Message deleted successfully' });
   } catch (error) {
     console.error('Delete message error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Search messages
+router.get('/search', auth, async (req, res) => {
+  try {
+    const { q, roomId, page = 1, limit = 20 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ message: 'Search query must be at least 2 characters' });
+    }
+
+    // Build search query
+    const searchQuery = {
+      content: { $regex: q, $options: 'i' },
+      deleted: false
+    };
+
+    // If roomId is provided, search only in that room
+    if (roomId) {
+      // Check if user is a member of the room
+      const room = await Room.findById(roomId);
+      if (!room) {
+        return res.status(404).json({ message: 'Room not found' });
+      }
+
+      const isMember = room.members.some(member => 
+        member.user.toString() === req.user._id.toString()
+      );
+
+      if (room.isPrivate && !isMember) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      searchQuery.room = roomId;
+    } else {
+      // Search in all rooms user has access to
+      const userRooms = await Room.find({
+        'members.user': req.user._id,
+        isActive: true
+      }).select('_id');
+
+      const roomIds = userRooms.map(room => room._id);
+      searchQuery.room = { $in: roomIds };
+    }
+
+    // Execute search
+    const messages = await Message.find(searchQuery)
+      .populate('sender', 'username avatar')
+      .populate('room', 'name')
+      .populate('replyTo', 'content sender')
+      .populate('mentions', 'username avatar')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    // Get total count
+    const total = await Message.countDocuments(searchQuery);
+
+    res.json({
+      messages,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total,
+      query: q
+    });
+  } catch (error) {
+    console.error('Search messages error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

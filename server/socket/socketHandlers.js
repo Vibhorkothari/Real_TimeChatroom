@@ -123,7 +123,7 @@ const setupSocketHandlers = (io) => {
     // Handle sending a message
     socket.on('send_message', async (data) => {
       try {
-        const { roomId, content, messageType = 'text', replyTo } = data;
+        const { roomId, content, messageType = 'text', replyTo, attachment } = data;
 
         // Validate room access
         const room = await Room.findById(roomId);
@@ -141,18 +141,33 @@ const setupSocketHandlers = (io) => {
           return;
         }
 
+        // Process mentions
+        const mentionRegex = /@(\w+)/g;
+        const mentions = [];
+        let match;
+        while ((match = mentionRegex.exec(content)) !== null) {
+          const username = match[1];
+          const user = await User.findOne({ username });
+          if (user) {
+            mentions.push(user._id);
+          }
+        }
+
         // Create message
         const message = new Message({
           content,
           sender: socket.user._id,
           room: roomId,
           messageType,
-          replyTo
+          replyTo: replyTo || null,
+          attachment: attachment || null,
+          mentions
         });
 
         await message.save();
         await message.populate('sender', 'username avatar');
         await message.populate('replyTo', 'content sender');
+        await message.populate('mentions', 'username avatar');
 
         // Emit to room
         io.to(roomId).emit('new_message', { message });
@@ -167,24 +182,63 @@ const setupSocketHandlers = (io) => {
     // Handle typing indicator
     socket.on('typing_start', (data) => {
       const { roomId } = data;
-      socket.to(roomId).emit('user_typing', {
+      socket.to(roomId).emit('typing_start', {
         roomId,
-        user: {
-          _id: socket.user._id,
-          username: socket.user.username
-        }
+        username: socket.user.username
       });
     });
 
     socket.on('typing_stop', (data) => {
       const { roomId } = data;
-      socket.to(roomId).emit('user_stopped_typing', {
+      socket.to(roomId).emit('typing_stop', {
         roomId,
-        user: {
-          _id: socket.user._id,
-          username: socket.user.username
-        }
+        username: socket.user.username
       });
+    });
+
+    // Handle message reactions
+    socket.on('add_reaction', async (data) => {
+      try {
+        const { messageId, emoji } = data;
+        
+        const message = await Message.findById(messageId);
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Check if user already reacted with this emoji
+        const existingReaction = message.reactions.find(
+          reaction => reaction.user.toString() === socket.user._id.toString() && 
+                      reaction.emoji === emoji
+        );
+
+        if (existingReaction) {
+          // Remove reaction
+          message.reactions = message.reactions.filter(
+            reaction => !(reaction.user.toString() === socket.user._id.toString() && 
+                         reaction.emoji === emoji)
+          );
+        } else {
+          // Add reaction
+          message.reactions.push({
+            user: socket.user._id,
+            emoji
+          });
+        }
+
+        await message.save();
+        await message.populate('reactions.user', 'username avatar');
+
+        // Emit to room
+        io.to(message.room.toString()).emit('reaction_added', {
+          messageId: message._id,
+          reactions: message.reactions
+        });
+      } catch (error) {
+        console.error('Add reaction error:', error);
+        socket.emit('error', { message: 'Server error' });
+      }
     });
 
     // Handle direct messages

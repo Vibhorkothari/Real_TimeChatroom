@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import io from 'socket.io-client';
 import axios from 'axios';
+import notificationService from '../services/notificationService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5001';
@@ -15,14 +16,21 @@ const useChatStore = create((set, get) => ({
   isConnected: false,
   isLoading: false,
   error: null,
+  typingUsers: new Set(),
 
   // Socket connection
   initializeSocket: () => {
     if (get().socket) return;
     
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
-      withCredentials: true
+      withCredentials: true,
+      auth: {
+        token: token
+      }
     });
 
     socket.on('connect', () => {
@@ -35,13 +43,35 @@ const useChatStore = create((set, get) => ({
       set({ isConnected: false });
     });
 
-    socket.on('new_message', (message) => {
-      const { messages } = get();
-      const messageExists = messages.some(m => m._id === message._id);
-      if (!messageExists) {
-        set({ messages: [...messages, message] });
-      }
-    });
+            socket.on('new_message', (data) => {
+              const { messages, currentRoom } = get();
+              const message = data.message; // Extract message from data.message
+              const messageExists = messages.some(m => m._id === message._id);
+              if (!messageExists) {
+                set({ messages: [...messages, message] });
+                
+                // Show notification if not in current room or page not visible
+                if (currentRoom?._id !== message.room) {
+                  const roomName = currentRoom?.name || 'Unknown Room';
+                  
+                  // Check if message mentions current user
+                  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                  const isMention = message.mentions?.some(mention => mention._id === currentUser._id);
+                  
+                  if (isMention) {
+                    notificationService.showMentionNotification(message, roomName);
+                  } else if (message.attachment) {
+                    notificationService.showFileNotification(message, roomName);
+                  } else {
+                    notificationService.showMessageNotification(message, roomName);
+                  }
+                  
+                  // Play sound and vibrate
+                  notificationService.playNotificationSound();
+                  notificationService.vibrate();
+                }
+              }
+            });
 
     socket.on('user_joined', (data) => {
       console.log('User joined:', data);
@@ -52,12 +82,39 @@ const useChatStore = create((set, get) => ({
     });
 
     socket.on('typing_start', (data) => {
-      // Handle typing indicator
+      const { typingUsers } = get();
+      const newTypingUsers = new Set(typingUsers);
+      newTypingUsers.add(data.username);
+      set({ typingUsers: newTypingUsers });
     });
 
-    socket.on('typing_stop', (data) => {
-      // Handle typing indicator stop
-    });
+            socket.on('typing_stop', (data) => {
+              const { typingUsers } = get();
+              const newTypingUsers = new Set(typingUsers);
+              newTypingUsers.delete(data.username);
+              set({ typingUsers: newTypingUsers });
+            });
+
+            socket.on('reaction_added', (data) => {
+              const { messageId, reactions } = data;
+              const { messages, currentRoom } = get();
+              const updatedMessages = messages.map(msg => 
+                msg._id === messageId ? { ...msg, reactions } : msg
+              );
+              set({ messages: updatedMessages });
+              
+              // Show notification for reactions on your messages
+              const message = messages.find(m => m._id === messageId);
+              const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+              const isOwnMessage = message?.sender?._id === currentUser._id;
+              
+              if (isOwnMessage && reactions.length > 0) {
+                const latestReaction = reactions[reactions.length - 1];
+                const roomName = currentRoom?.name || 'Unknown Room';
+                notificationService.showReactionNotification(message, latestReaction, roomName);
+                notificationService.playNotificationSound();
+              }
+            });
 
     set({ socket });
   },
@@ -86,29 +143,49 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  createRoom: async (roomData) => {
+  fetchPublicRooms: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      set({ rooms: [], isLoading: false });
+      return;
+    }
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/rooms`, roomData);
-      const newRoom = response.data;
-      set({ rooms: [...get().rooms, newRoom] });
-      return { success: true, room: newRoom };
+      set({ isLoading: true, error: null, rooms: [] });
+      const response = await axios.get(`${API_BASE_URL}/api/rooms/public`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const rooms = response.data.rooms || [];
+      set({ rooms: Array.isArray(rooms) ? rooms : [], isLoading: false });
     } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to create room'
-      };
+      console.error('Fetch public rooms error:', error);
+      set({ 
+        rooms: [], 
+        isLoading: false, 
+        error: error.response?.data?.message || 'Failed to fetch rooms'
+      });
     }
   },
 
-  joinRoom: async (roomId) => {
+  createRoom: async (roomData) => {
     try {
-      await axios.post(`${API_BASE_URL}/api/rooms/${roomId}/join`);
-      await get().fetchRooms();
-      return { success: true };
+      const response = await axios.post(`${API_BASE_URL}/api/rooms`, roomData);
+      const newRoom = response.data.room; // Extract room from response.data.room
+      
+      // Add the new room to the current rooms list
+      set({ rooms: [...get().rooms, newRoom] });
+      
+      // Also refresh the rooms list to ensure consistency
+      await get().fetchPublicRooms();
+      
+      return { success: true, room: newRoom };
     } catch (error) {
+      console.error('Create room error:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to join room'
+        error: error.response?.data?.message || 'Failed to create room'
       };
     }
   },
@@ -146,52 +223,75 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  sendMessage: async (content, roomId) => {
-    const { socket } = get();
-    if (!socket || socket.isSending) return { success: false, error: 'Socket not ready' };
+  searchMessages: async (query, roomId = null, page = 1) => {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, error: 'Not authenticated' };
 
     try {
-      socket.isSending = true;
-      const response = await axios.post(`${API_BASE_URL}/api/messages`, {
-        content,
-        roomId
+      const params = new URLSearchParams({
+        q: query,
+        page: page,
+        limit: 20
       });
 
-      const message = response.data;
-      set({ messages: [...get().messages, message] });
+      if (roomId) {
+        params.append('roomId', roomId);
+      }
 
-      // Reset sending flag after 1 second
-      setTimeout(() => {
-        if (socket) socket.isSending = false;
-      }, 1000);
-
-      return { success: true, message };
+      const response = await axios.get(`${API_BASE_URL}/api/messages/search?${params}`);
+      return {
+        success: true,
+        data: response.data
+      };
     } catch (error) {
-      if (socket) socket.isSending = false;
+      console.error('Search messages error:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to send message'
+        error: error.response?.data?.message || 'Search failed'
       };
     }
   },
 
-  addReaction: async (messageId, reaction) => {
+  sendMessage: async (content, roomId, messageType = 'text', attachment = null, replyTo = null) => {
+    const { socket } = get();
+    if (!socket) return { success: false, error: 'Socket not connected' };
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/messages/${messageId}/reactions`, {
-        reaction
+      // Emit message via socket for real-time delivery
+      socket.emit('send_message', {
+        roomId,
+        content,
+        messageType,
+        attachment,
+        replyTo
       });
-      
-      const { messages } = get();
-      const updatedMessages = messages.map(msg => 
-        msg._id === messageId ? { ...msg, reactions: response.data.reactions } : msg
-      );
-      
-      set({ messages: updatedMessages });
+
       return { success: true };
     } catch (error) {
+      console.error('Send message error:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to add reaction'
+        error: 'Failed to send message'
+      };
+    }
+  },
+
+  addReaction: (messageId, emoji) => {
+    const { socket } = get();
+    if (!socket) return { success: false, error: 'Socket not connected' };
+
+    try {
+      // Emit reaction via socket for real-time delivery
+      socket.emit('add_reaction', {
+        messageId,
+        emoji
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Add reaction error:', error);
+      return {
+        success: false,
+        error: 'Failed to add reaction'
       };
     }
   },
@@ -199,16 +299,83 @@ const useChatStore = create((set, get) => ({
   // User management
   fetchUsers: async () => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      set({ users: [] });
+      return;
+    }
 
     try {
       const response = await axios.get(`${API_BASE_URL}/api/auth/users`);
-      set({ users: response.data });
+      const users = response.data.users || [];
+      set({ users: Array.isArray(users) ? users : [] });
     } catch (error) {
       console.error('Fetch users error:', error);
+      set({ users: [] });
       if (error.response?.status === 401) {
         set({ users: [] });
       }
+    }
+  },
+
+  // Room functions
+  joinRoom: async (roomId) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/rooms/${roomId}/join`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const { socket } = get();
+      if (socket) {
+        socket.emit('join_room', { roomId });
+      }
+      
+      // Refresh the rooms list to update membership status
+      await get().fetchPublicRooms();
+      
+      return { success: true, room: response.data.room };
+    } catch (error) {
+      console.error('Join room error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to join room'
+      };
+    }
+  },
+
+  // Socket-only room joining (for when user is already a member)
+  joinRoomSocket: (roomId) => {
+    const { socket } = get();
+    if (socket) {
+      socket.emit('join_room', { roomId });
+    }
+  },
+
+  leaveRoom: (roomId) => {
+    const { socket } = get();
+    if (socket) {
+      socket.emit('leave_room', { roomId });
+    }
+  },
+
+  // Typing functions
+  startTyping: () => {
+    const { socket, currentRoom } = get();
+    if (socket && currentRoom) {
+      socket.emit('typing_start', { roomId: currentRoom._id });
+    }
+  },
+
+  stopTyping: () => {
+    const { socket, currentRoom } = get();
+    if (socket && currentRoom) {
+      socket.emit('typing_stop', { roomId: currentRoom._id });
     }
   },
 

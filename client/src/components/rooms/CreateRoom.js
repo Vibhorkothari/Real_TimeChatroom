@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { FiUsers, FiLock, FiPlus } from 'react-icons/fi';
+// Removed unused imports: FiUsers, FiLock, FiPlus
 import useChatStore from '../../store/chatStore';
 import './CreateRoom.css';
 
@@ -39,11 +39,12 @@ const CreateRoom = () => {
       
       if (result.success) {
         toast.success('Room created successfully!');
-        navigate(`/dashboard/room/${result.room._id}`);
+        navigate('/dashboard');
       } else {
-        toast.error(result.message);
+        toast.error(result.error || 'Failed to create room');
       }
     } catch (error) {
+      console.error('Create room error:', error);
       toast.error('Failed to create room');
     } finally {
       setLoading(false);

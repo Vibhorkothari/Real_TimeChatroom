@@ -34,6 +34,10 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

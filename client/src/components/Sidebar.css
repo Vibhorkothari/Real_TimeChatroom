@@ -122,7 +122,8 @@
   border-top: 1px solid #e5e7eb;
 }
 
-.theme-toggle-button {
+.theme-toggle-button,
+.notification-button {
   width: 100%;
   display: flex;
   align-items: center;
@@ -139,23 +140,27 @@
   margin-bottom: 8px;
 }
 
-.theme-toggle-button:hover {
+.theme-toggle-button:hover,
+.notification-button:hover {
   background: #e0f2fe;
   border-color: #7dd3fc;
 }
 
-.theme-icon {
+.theme-icon,
+.notification-icon {
   font-size: 16px;
 }
 
 /* Dark mode styles */
-.dark-mode .theme-toggle-button {
+.dark-mode .theme-toggle-button,
+.dark-mode .notification-button {
   background: rgba(102, 126, 234, 0.2);
   border: 1px solid rgba(102, 126, 234, 0.4);
   color: #ffffff;
 }
 
-.dark-mode .theme-toggle-button:hover {
+.dark-mode .theme-toggle-button:hover,
+.dark-mode .notification-button:hover {
   background: rgba(102, 126, 234, 0.3);
   border-color: rgba(102, 126, 234, 0.6);
 }
@@ -252,6 +257,17 @@
     .mobile-only {
       display: none !important;
     }
+    
+    .desktop-only {
+      display: flex !important;
+    }
+  }
+  
+  /* Hide desktop-only elements on mobile */
+  @media (max-width: 768px) {
+    .desktop-only {
+      display: none !important;
+    }
   }
   
   /* Show hamburger only on mobile */
@@ -269,6 +285,11 @@
     .hamburger-icon {
       display: block !important;
       visibility: visible !important;
+    }
+    
+    /* Hide internal hamburger when sidebar is open in mobile */
+    .sidebar.mobile-open .mobile-menu-toggle {
+      display: none !important;
     }
   }
   
@@ -307,6 +328,21 @@
     max-height: 300px;
     opacity: 1;
     padding: 15px;
+  }
+  
+  /* Show navigation when sidebar is open in mobile mode */
+  .sidebar.mobile-open .sidebar-nav {
+    max-height: 500px !important;
+    opacity: 1 !important;
+    padding: 15px !important;
+    overflow-y: auto;
+  }
+  
+  .sidebar.mobile-open .sidebar-footer {
+    max-height: 200px !important;
+    opacity: 1 !important;
+    padding: 15px !important;
+    overflow-y: auto;
   }
   
   .nav-button {
@@ -459,6 +495,7 @@
   }
   
   .theme-toggle-button,
+  .notification-button,
   .logout-button {
     padding: 10px 12px;
     font-size: 13px;
@@ -467,6 +504,7 @@
   }
   
   .theme-icon,
+  .notification-icon,
   .logout-icon {
     font-size: 14px;
   }
@@ -520,6 +558,7 @@
   }
   
   .theme-toggle-button,
+  .notification-button,
   .logout-button {
     padding: 8px 10px;
     font-size: 12px;
@@ -528,6 +567,7 @@
   }
   
   .theme-icon,
+  .notification-icon,
   .logout-icon {
     font-size: 13px;
   }

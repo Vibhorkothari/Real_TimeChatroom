@@ -1,39 +1,20 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { FiHeart, FiThumbsUp, FiSmile, FiMoreVertical } from 'react-icons/fi';
+import { FiMoreVertical } from 'react-icons/fi';
+import ReactionButton from './ReactionButton';
+import FileMessage from './FileMessage';
+import VoiceMessage from './VoiceMessage';
+import ReplyButton from './ReplyButton';
+import { parseMessageContent } from '../../utils/messageUtils';
 import useAuthStore from '../../store/authStore';
-import useChatStore from '../../store/chatStore';
 import './MessageItem.css';
 
-const MessageItem = ({ message, isOwnMessage }) => {
-  const { user } = useAuthStore();
-  const { addReaction } = useChatStore();
+const MessageItem = ({ message, isOwnMessage, onReply }) => {
   const [showMenu, setShowMenu] = useState(false);
-
-  const handleReaction = async (emoji) => {
-    try {
-      if (!message._id) {
-        console.error('Message ID is missing');
-        return;
-      }
-      await addReaction(message._id, emoji);
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-    }
-  };
+  const { user } = useAuthStore();
 
   const formatTime = (date) => {
     return format(new Date(date), 'HH:mm');
-  };
-
-  const getReactionCount = (emoji) => {
-    return message.reactions?.filter(reaction => reaction.emoji === emoji).length || 0;
-  };
-
-  const hasUserReacted = (emoji) => {
-    return message.reactions?.some(reaction => 
-      reaction.user._id === user._id && reaction.emoji === emoji
-    );
   };
 
   return (
@@ -55,33 +36,41 @@ const MessageItem = ({ message, isOwnMessage }) => {
           {message.edited && <span className="edited-indicator">(edited)</span>}
         </div>
         
-        <div className="message-text">
-          {message.content}
-        </div>
-        
-        {message.reactions && message.reactions.length > 0 && (
-          <div className="message-reactions">
-            {['👍', '❤️', '😊'].map((emoji) => {
-              const count = getReactionCount(emoji);
-              if (count > 0) {
-                return (
-                  <button
-                    key={emoji}
-                    className={`reaction-button ${hasUserReacted(emoji) ? 'reacted' : ''}`}
-                    onClick={() => handleReaction(emoji)}
-                  >
-                    <span className="reaction-emoji">{emoji}</span>
-                    <span className="reaction-count">{count}</span>
-                  </button>
-                );
-              }
-              return null;
-            })}
+        {message.content && (
+          <div className="message-text">
+            {parseMessageContent(message.content, message.mentions || [], user?._id)}
           </div>
         )}
+        
+        {message.attachment && message.messageType === 'audio' && (
+          <VoiceMessage 
+            attachment={message.attachment} 
+            isOwnMessage={isOwnMessage}
+          />
+        )}
+        
+        {message.attachment && message.messageType !== 'audio' && (
+          <FileMessage 
+            attachment={message.attachment} 
+            messageType={message.messageType} 
+          />
+        )}
+        
+        <ReactionButton 
+          messageId={message._id} 
+          reactions={message.reactions || []} 
+        />
       </div>
       
       <div className="message-actions">
+        {onReply && (
+          <ReplyButton 
+            message={message} 
+            onReply={onReply}
+            onCancel={() => {}} 
+          />
+        )}
+        
         <button
           className="action-button"
           onClick={() => setShowMenu(!showMenu)}
@@ -91,18 +80,19 @@ const MessageItem = ({ message, isOwnMessage }) => {
         
         {showMenu && (
           <div className="message-menu">
-            <button className="menu-item" onClick={() => handleReaction('👍')}>
-              <FiThumbsUp />
-              Like
+            <button className="menu-item">
+              Copy
             </button>
-            <button className="menu-item" onClick={() => handleReaction('❤️')}>
-              <FiHeart />
-              Love
-            </button>
-            <button className="menu-item" onClick={() => handleReaction('😊')}>
-              <FiSmile />
-              Smile
-            </button>
+            {isOwnMessage && (
+              <button className="menu-item">
+                Edit
+              </button>
+            )}
+            {isOwnMessage && (
+              <button className="menu-item">
+                Delete
+              </button>
+            )}
           </div>
         )}
       </div>

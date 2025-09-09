@@ -8,18 +8,25 @@ import {
   FiMessageCircle,
   FiMenu,
   FiSun,
-  FiMoon
+  FiMoon,
+  FiBell
 } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
+import NotificationSettings from './common/NotificationSettings';
 import './Sidebar.css';
 
-const Sidebar = ({ user, activeTab, setActiveTab, onLogout }) => {
+const Sidebar = ({ user, activeTab, setActiveTab, onLogout, isOpen, onClose }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
+    // Close mobile sidebar when navigating
+    if (onClose) {
+      onClose();
+    }
     switch (tab) {
       case 'rooms':
         navigate('/dashboard');
@@ -47,7 +54,7 @@ const Sidebar = ({ user, activeTab, setActiveTab, onLogout }) => {
   };
 
   return (
-    <div className={`sidebar ${isExpanded ? 'expanded' : ''}`}>
+    <div className={`sidebar ${isExpanded ? 'expanded' : ''} ${isOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="user-info">
           <div className="user-avatar">
@@ -64,7 +71,8 @@ const Sidebar = ({ user, activeTab, setActiveTab, onLogout }) => {
             <span className="user-status online">Online</span>
           </div>
         </div>
-        <div className="mobile-menu-toggle mobile-only">
+        {/* Only show hamburger on desktop for expanding/collapsing */}
+        <div className="mobile-menu-toggle desktop-only">
           <FiMenu className="hamburger-icon" />
         </div>
       </div>
@@ -118,11 +126,23 @@ const Sidebar = ({ user, activeTab, setActiveTab, onLogout }) => {
           {isDarkMode ? <FiSun className="theme-icon" /> : <FiMoon className="theme-icon" />}
           <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
+        <button 
+          className="notification-button" 
+          onClick={() => setShowNotificationSettings(true)}
+        >
+          <FiBell className="notification-icon" />
+          <span>Notifications</span>
+        </button>
         <button className="logout-button" onClick={handleLogout}>
           <FiLogOut className="logout-icon" />
           <span>Logout</span>
         </button>
       </div>
+      
+      <NotificationSettings
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
+      />
     </div>
   );
 };

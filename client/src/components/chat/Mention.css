@@ -1,0 +1,37 @@
+.mention {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9em;
+  margin: 0 2px;
+  display: inline-block;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.mention:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.mention.own-mention {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.mention.own-mention:hover {
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+/* Dark theme */
+.dark .mention {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: #1a1a1a;
+}
+
+.dark .mention.own-mention {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: #1a1a1a;
+}

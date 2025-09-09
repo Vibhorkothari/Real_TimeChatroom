@@ -1,0 +1,156 @@
+.reply-button {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.message-item:hover .reply-button {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.reply-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.reply-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reply-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.reply-username {
+  font-size: 12px;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.reply-content {
+  font-size: 12px;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.cancel-reply-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cancel-reply-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .reply-button {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  .reply-preview {
+    padding: 6px 10px;
+    margin: 6px 0;
+  }
+  
+  .reply-info {
+    gap: 6px;
+  }
+  
+  .reply-label,
+  .reply-username,
+  .reply-content {
+    font-size: 11px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .reply-button {
+    color: #9ca3af;
+  }
+  
+  .reply-button:hover {
+    background: #374151;
+    color: #f9fafb;
+  }
+  
+  .reply-preview {
+    background: #111827;
+    border-color: #374151;
+  }
+  
+  .reply-label {
+    color: #9ca3af;
+  }
+  
+  .reply-username {
+    color: #60a5fa;
+  }
+  
+  .reply-content {
+    color: #f9fafb;
+  }
+  
+  .cancel-reply-btn {
+    color: #9ca3af;
+  }
+  
+  .cancel-reply-btn:hover {
+    background: #374151;
+    color: #f9fafb;
+  }
+}

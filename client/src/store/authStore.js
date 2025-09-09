@@ -97,7 +97,7 @@ const useAuthStore = create((set, get) => ({
   getCurrentUser: async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      set({ isAuthenticated: false });
+      set({ isAuthenticated: false, user: null });
       return;
     }
 
@@ -105,30 +105,35 @@ const useAuthStore = create((set, get) => ({
       get().setAuthHeaders(token);
       const response = await axios.get(`${API_BASE_URL}/api/auth/me`);
       set({
-        user: response.data,
+        user: response.data.user,
         token,
         isAuthenticated: true,
         error: null
       });
     } catch (error) {
-      if (error.response?.status === 401 && get().isAuthenticated) {
-        get().logout();
+      console.error('Get current user error:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        get().setAuthHeaders(null);
+        set({ isAuthenticated: false, user: null, token: null });
+      } else {
+        set({ isAuthenticated: false, user: null });
       }
-      set({ isAuthenticated: false });
     }
   },
 
-  initialize: () => {
+  initialize: async () => {
+    set({ loading: true });
     const token = localStorage.getItem('token');
     if (token) {
       get().setAuthHeaders(token);
-      set({ token, isAuthenticated: true });
-      setTimeout(() => {
-        get().getCurrentUser();
-      }, 1000);
+      set({ token });
+      await get().getCurrentUser();
     } else {
       get().setAuthHeaders(null);
+      set({ isAuthenticated: false, user: null, token: null });
     }
+    set({ loading: false });
   }
 }));
 

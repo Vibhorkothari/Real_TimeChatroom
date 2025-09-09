@@ -5,7 +5,7 @@ import useChatStore from './store/chatStore';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import Dashboard from './components/Dashboard';
-import LoadingSpinner from './components/common/LoadingSpinner';
+import LoadingScreen from './components/common/LoadingScreen';
 import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
 
@@ -26,7 +26,7 @@ function App() {
   }, [isAuthenticated, initializeSocket, disconnectSocket]);
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingScreen message="Initializing ChatRoom..." />;
   }
 
   return (

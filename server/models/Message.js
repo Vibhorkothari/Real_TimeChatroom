@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   content: {
     type: String,
-    required: true,
+    required: function() {
+      return this.messageType === 'text' || this.messageType === 'system';
+    },
     trim: true,
     maxlength: 1000
   },
@@ -19,8 +21,17 @@ const messageSchema = new mongoose.Schema({
   },
   messageType: {
     type: String,
-    enum: ['text', 'image', 'file', 'system'],
+    enum: ['text', 'image', 'file', 'video', 'audio', 'document', 'system'],
     default: 'text'
+  },
+  // File attachment information
+  attachment: {
+    filename: String,
+    originalName: String,
+    mimeType: String,
+    size: Number,
+    url: String,
+    thumbnail: String // For images/videos
   },
   // For direct messages
   recipient: {
@@ -55,7 +66,12 @@ const messageSchema = new mongoose.Schema({
   replyTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message'
-  }
+  },
+  // For @username mentions
+  mentions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, {
   timestamps: true
 });

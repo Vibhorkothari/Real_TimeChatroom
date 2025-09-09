@@ -1,19 +1,21 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { FiImage, FiUsers, FiSettings } from 'react-icons/fi';
+import { FiImage, FiUsers, FiSettings, FiSearch } from 'react-icons/fi';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import RoomSettings from './RoomSettings';
 import MemberList from './MemberList';
+import SearchMessages from './SearchMessages';
+import LoadingScreen from '../common/LoadingScreen';
 import './ChatRoom.css';
 
 const ChatRoom = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const { currentRoom, messages, setCurrentRoom, fetchMessages, fetchRoom, error, typingUsers } = useChatStore();
+  const { currentRoom, messages, setCurrentRoom, fetchMessages, fetchRoom, error, typingUsers, joinRoomSocket, leaveRoom } = useChatStore();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [selectedBackground, setSelectedBackground] = useState(() => {
@@ -22,6 +24,8 @@ const ChatRoom = () => {
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const [showMemberList, setShowMemberList] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
 
   const backgroundOptions = [
@@ -45,11 +49,19 @@ const ChatRoom = () => {
         if (room) {
           // Set the current room
           setCurrentRoom(room);
+          // Join the room via socket only
+          joinRoomSocket(roomId);
+          // Fetch messages for the room
+          await fetchMessages(roomId);
         } else {
           // If room not found in list, try to fetch it
           const fetchedRoom = await fetchRoom(roomId);
           if (fetchedRoom) {
             setCurrentRoom(fetchedRoom);
+            // Join the room via socket only
+            joinRoomSocket(roomId);
+            // Fetch messages for the room
+            await fetchMessages(roomId);
           } else {
             toast.error('Room not found');
             navigate('/dashboard');
@@ -74,7 +86,7 @@ const ChatRoom = () => {
     } else if (roomId && !user) {
       navigate('/login');
     }
-  }, [roomId, fetchMessages, fetchRoom, setCurrentRoom, navigate, user]);
+  }, [roomId, fetchMessages, fetchRoom, setCurrentRoom, navigate, user, joinRoomSocket]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,12 +96,17 @@ const ChatRoom = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Cleanup: leave room when component unmounts
+  useEffect(() => {
+    return () => {
+      if (roomId) {
+        leaveRoom(roomId);
+      }
+    };
+  }, [roomId, leaveRoom]);
+
   if (loading) {
-    return (
-      <div className="chat-container">
-        <div className="loading-message">Loading room...</div>
-      </div>
-    );
+    return <LoadingScreen message="Loading chat room..." />;
   }
 
   if (error) {
@@ -114,6 +131,14 @@ const ChatRoom = () => {
     return currentRoom?.members?.length || 0;
   };
 
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
   return (
     <div className="chat-container">
       {/* Enhanced Chat Header */}
@@ -128,6 +153,13 @@ const ChatRoom = () => {
           </div>
         </div>
         <div className="chat-header-actions">
+          <button 
+            className="header-action-btn"
+            onClick={() => setShowSearch(true)}
+            title="Search Messages"
+          >
+            <FiSearch />
+          </button>
           <button 
             className="header-action-btn"
             onClick={() => setShowBackgroundSelector(!showBackgroundSelector)}
@@ -174,10 +206,10 @@ const ChatRoom = () => {
       )}
       
       <div className={`chat-messages bg-${selectedBackground}`}>
-        <MessageList messages={messages} />
+        <MessageList messages={messages} onReply={handleReply} />
         
         {/* Typing Indicator */}
-        {typingUsers.size > 0 && (
+        {typingUsers && typingUsers.size > 0 && (
           <div className="typing-indicator">
             <span>{Array.from(typingUsers).join(', ')} is typing</span>
             <div className="typing-dots">
@@ -191,7 +223,11 @@ const ChatRoom = () => {
         <div ref={messagesEndRef} />
       </div>
       
-      <MessageInput roomId={roomId} />
+      <MessageInput 
+        roomId={roomId} 
+        replyingTo={replyingTo}
+        onCancelReply={handleCancelReply}
+      />
       
       {/* Room Settings Modal */}
       {showRoomSettings && (
@@ -211,6 +247,15 @@ const ChatRoom = () => {
         <MemberList
           room={currentRoom}
           onClose={() => setShowMemberList(false)}
+        />
+      )}
+
+      {/* Search Messages Modal */}
+      {showSearch && (
+        <SearchMessages
+          isOpen={showSearch}
+          onClose={() => setShowSearch(false)}
+          currentRoomId={roomId}
         />
       )}
     </div>

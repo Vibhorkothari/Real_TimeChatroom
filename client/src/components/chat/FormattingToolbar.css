@@ -1,0 +1,153 @@
+.formatting-toolbar {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.2s ease;
+}
+
+.dark .formatting-toolbar {
+  background: #2a2a2a;
+  border-color: #404040;
+  color: #e0e0e0;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toolbar-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dark .toolbar-title {
+  color: #999;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.format-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  font-weight: 500;
+  min-width: 32px;
+  justify-content: center;
+}
+
+.dark .format-button {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #999;
+}
+
+.format-button:hover:not(.disabled) {
+  background: #f8f9fa;
+  border-color: #d0d0d0;
+  color: #333;
+  transform: translateY(-1px);
+}
+
+.dark .format-button:hover:not(.disabled) {
+  background: #404040;
+  border-color: #666;
+  color: #e0e0e0;
+}
+
+.format-button.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.dark .format-button.active {
+  background: #4facfe;
+  border-color: #4facfe;
+  color: #1a1a1a;
+}
+
+.format-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.format-button.disabled:hover {
+  background: white;
+  border-color: #e0e0e0;
+  color: #666;
+  transform: none;
+}
+
+.dark .format-button.disabled:hover {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #999;
+}
+
+.format-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.toolbar-hint {
+  font-size: 0.75rem;
+  color: #999;
+  text-align: center;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.dark .toolbar-hint {
+  color: #666;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .formatting-toolbar {
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+  
+  .toolbar-actions {
+    gap: 2px;
+  }
+  
+  .format-button {
+    padding: 4px 6px;
+    font-size: 0.7rem;
+    min-width: 28px;
+  }
+  
+  .format-label {
+    font-size: 0.6rem;
+  }
+}

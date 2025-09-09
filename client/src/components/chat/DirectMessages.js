@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import { FiMessageCircle, FiSearch, FiUser } from 'react-icons/fi';
+import { FiMessageCircle, FiSearch } from 'react-icons/fi';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
 import './DirectMessages.css';
@@ -18,7 +17,13 @@ const DirectMessages = () => {
   }, [fetchUsers]);
 
   useEffect(() => {
+    if (!Array.isArray(users)) {
+      setFilteredUsers([]);
+      return;
+    }
+    
     const filtered = users.filter(userItem => 
+      userItem && userItem.username && userItem._id &&
       userItem.username.toLowerCase().includes(searchTerm.toLowerCase()) &&
       userItem._id !== user._id
     );

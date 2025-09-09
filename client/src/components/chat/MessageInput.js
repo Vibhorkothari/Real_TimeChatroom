@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiSend, FiSmile } from 'react-icons/fi';
+import { FiSend, FiSmile, FiPaperclip, FiMic } from 'react-icons/fi';
 import useChatStore from '../../store/chatStore';
+import FileUpload from './FileUpload';
+import VoiceRecorder from './VoiceRecorder';
 
 import './MessageInput.css';
 
-const MessageInput = ({ roomId }) => {
+const MessageInput = ({ roomId, replyingTo, onCancelReply }) => {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const { sendMessage, startTyping, stopTyping } = useChatStore();
   const emojiPickerRef = useRef(null);
 
@@ -61,10 +65,62 @@ const MessageInput = ({ roomId }) => {
     
     if (!message.trim()) return;
 
-    sendMessage(message.trim());
+    sendMessage(message.trim(), roomId, 'text', null, replyingTo?._id);
     setMessage('');
     setIsTyping(false);
     stopTyping();
+    if (onCancelReply) onCancelReply();
+  };
+
+  const handleFileSelect = (files) => {
+    // Send each file as a separate message
+    files.forEach(file => {
+      sendMessage('', roomId, file.messageType, file);
+    });
+  };
+
+  const handleVoiceSend = async (audioBlob) => {
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'voice-message.webm');
+      
+      // Upload the voice message
+      const token = localStorage.getItem('token');
+      const uploadResponse = await fetch('/api/upload/single', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (uploadResponse.ok) {
+        const uploadData = await uploadResponse.json();
+        
+        // Send message with voice attachment
+        await sendMessage(
+          '', // No text content for voice messages
+          roomId,
+          'audio',
+          {
+            filename: uploadData.file.filename,
+            originalName: uploadData.file.originalName,
+            mimeType: uploadData.file.mimeType,
+            size: uploadData.file.size,
+            url: uploadData.file.url
+          },
+          replyingTo?._id
+        );
+        
+        setShowVoiceRecorder(false);
+        if (onCancelReply) onCancelReply();
+      } else {
+        console.error('Voice upload failed');
+      }
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -128,6 +184,24 @@ const MessageInput = ({ roomId }) => {
             maxLength="1000"
           />
           <div className="input-actions">
+            <button 
+              type="button" 
+              className="file-button" 
+              onClick={() => setShowFileUpload(true)}
+              title="Attach file"
+            >
+              <FiPaperclip />
+            </button>
+            
+            <button 
+              type="button" 
+              className="voice-button" 
+              onClick={() => setShowVoiceRecorder(true)}
+              title="Record voice message"
+            >
+              <FiMic />
+            </button>
+            
             <div className="emoji-picker-container" ref={emojiPickerRef}>
               <button type="button" className="emoji-button" onClick={toggleEmojiPicker}>
                 <FiSmile />
@@ -153,6 +227,20 @@ const MessageInput = ({ roomId }) => {
           </div>
         </div>
       </form>
+      
+      {showFileUpload && (
+        <FileUpload
+          onFileSelect={handleFileSelect}
+          onClose={() => setShowFileUpload(false)}
+        />
+      )}
+
+      {showVoiceRecorder && (
+        <VoiceRecorder
+          onSend={handleVoiceSend}
+          onCancel={() => setShowVoiceRecorder(false)}
+        />
+      )}
     </div>
   );
 };
